@@ -1,0 +1,117 @@
+const $ = id => document.getElementById(id);
+const dom = { domain: $('domain'), from: $('from'), to: $('to'), form: $('add-form'), btn: $('add-btn'), list: $('list'), msg: $('message'), count: $('count'), fromToggle: $('from-toggle'), fromSuffix: $('from-suffix') };
+
+let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false;
+
+const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg>';
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+const api = (path, opts) => fetch(`/api/ovh/email/domain/${selectedDomain}/redirection${path}`, opts).then(async r => {
+  const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+  if (!r.ok) throw new Error(data?.message || `Error ${r.status}`);
+  return data;
+});
+
+function showMsg(text, ok) {
+  clearTimeout(msgTimer);
+  dom.msg.innerHTML = `<div class="msg ${ok ? 'msg-ok' : 'msg-err'}">${esc(text)}</div>`;
+  msgTimer = setTimeout(() => dom.msg.innerHTML = '', 4000);
+}
+
+function getFromValue() {
+  const val = dom.from.value.trim();
+  return fromExpanded ? val : val + '@' + selectedDomain;
+}
+
+function setDomain(d) {
+  const prev = selectedDomain;
+  selectedDomain = d;
+  localStorage.setItem('lastDomain', d);
+  dom.to.value = domains[d] || '';
+  dom.fromSuffix.textContent = '@' + d;
+  if (fromExpanded) {
+    const val = dom.from.value;
+    const at = val.indexOf('@');
+    if (at >= 0 && prev) dom.from.value = val.slice(0, at) + '@' + d;
+  }
+}
+
+dom.fromToggle.addEventListener('click', () => {
+  const group = dom.from.closest('.input-group');
+  fromExpanded = !fromExpanded;
+  if (fromExpanded) {
+    const prefix = dom.from.value.trim();
+    dom.from.value = prefix ? prefix + '@' + selectedDomain : '@' + selectedDomain;
+    group.classList.add('expanded');
+    dom.fromToggle.classList.add('active');
+  } else {
+    const val = dom.from.value.trim();
+    const at = val.indexOf('@');
+    dom.from.value = at > 0 ? val.slice(0, at) : (at === 0 ? '' : val);
+    group.classList.remove('expanded');
+    dom.fromToggle.classList.remove('active');
+  }
+  dom.from.focus();
+});
+
+async function fetchList() {
+  dom.list.innerHTML = '<div class="spinner">Loading...</div>';
+  dom.count.textContent = '';
+  try {
+    const ids = await api('');
+    dom.count.textContent = `${ids.length} redirection${ids.length !== 1 ? 's' : ''}`;
+    if (!ids.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
+
+    const items = await Promise.all(ids.map(id => api(`/${id}`)));
+    items.sort((a, b) => a.from.localeCompare(b.from));
+
+    dom.list.innerHTML = '<table><tbody>' + items.map(r =>
+      `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" title="Delete">${TRASH_SVG}</button></td></tr>`
+    ).join('') + '</tbody></table>';
+  } catch (err) {
+    console.error(err);
+    dom.list.innerHTML = `<div class="msg msg-err">${esc(err.message)}</div>`;
+  }
+}
+
+dom.domain.addEventListener('change', () => { setDomain(dom.domain.value); fetchList(); });
+
+dom.form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const from = getFromValue(), to = dom.to.value.trim();
+  const at = from.indexOf('@');
+  if (at < 1) { showMsg(`Source must have a username before @`, false); return; }
+
+  dom.btn.disabled = true;
+  try {
+    await api('', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, localCopy: false }) });
+    showMsg('Redirection added', true);
+    dom.from.value = fromExpanded ? '@' + selectedDomain : '';
+    fetchList();
+  } catch (err) { showMsg(err.message, false); }
+  finally { dom.btn.disabled = false; }
+});
+
+dom.list.addEventListener('click', async e => {
+  const btn = e.target.closest('.del-btn');
+  if (!btn || !confirm('Delete this redirection?')) return;
+  const prev = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '&hellip;';
+  try { await api(`/${btn.dataset.id}`, { method: 'DELETE' }); showMsg('Redirection deleted', true); fetchList(); }
+  catch (err) { showMsg(err.message, false); btn.disabled = false; btn.innerHTML = prev; }
+});
+
+(async () => {
+  try {
+    const { domains: d } = await (await fetch('/api/config')).json();
+    domains = d;
+    const keys = Object.keys(d);
+    const saved = localStorage.getItem('lastDomain');
+    selectedDomain = keys.includes(saved) ? saved : keys[0];
+    dom.domain.innerHTML = keys.map(k => `<option value="${k}"${k === selectedDomain ? ' selected' : ''}>${k}</option>`).join('');
+    setDomain(selectedDomain);
+    fetchList();
+  } catch { dom.list.innerHTML = '<div class="msg msg-err">Failed to load configuration</div>'; }
+})();

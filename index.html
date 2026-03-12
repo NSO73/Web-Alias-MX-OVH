@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirections OVH Mails</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%232563eb' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'><rect x='1.5' y='3.5' width='13' height='9' rx='1.5'/><path d='M1.5 4.5L8 9l6.5-4.5'/></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Redirections OVH Mails</h1>
+  <div class="card">
+    <div class="field">
+      <div class="field-header">
+        <label for="domain">Domain</label>
+        <span id="count" class="count"></span>
+      </div>
+      <div class="select-wrap">
+        <select id="domain"></select>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+    </div>
+    <form id="add-form">
+      <div class="form-row">
+        <div class="field field-grow">
+          <label for="from">Source</label>
+          <div class="field-inline">
+            <div class="input-group">
+              <input type="text" id="from" required>
+              <span class="input-suffix" id="from-suffix"></span>
+            </div>
+            <button type="button" class="btn-square" id="from-toggle" title="Edit full address"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 1.5l3 3-9.5 9.5H2v-3z"/></svg></button>
+          </div>
+        </div>
+        <span class="arrow">&rarr;</span>
+        <div class="field field-grow">
+          <label for="to">Destination</label>
+          <div class="field-inline">
+            <input type="email" id="to" required>
+            <button type="submit" class="btn-square btn-add" id="add-btn" title="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div id="message"></div>
+  <div class="card card-table">
+    <div id="list"><div class="spinner">Loading...</div></div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

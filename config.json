@@ -1,0 +1,13 @@
+{
+  "port": 8080,
+  "ovh": {
+    "endpoint": "https://eu.api.ovh.com/1.0",
+    "applicationKey": "your_app_key",
+    "applicationSecret": "your_app_secret",
+    "consumerKey": "your_consumer_key"
+  },
+  "domains": {
+    "example.com": "default@destination.com",
+    "other.com": "other@destination.com"
+  }
+}
