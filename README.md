@@ -4,7 +4,7 @@ A lightweight web UI to manage OVH email redirections.
 
 *Une interface web légère pour gérer les redirections email OVH.*
 
-No npm &middot; No build step &middot; No dependencies &middot; Single `node server.js`
+No npm &middot; No build step &middot; No framework &middot; Pure PHP
 
 <a href="screenshot.png"><img src="screenshot.png" alt="Screenshot"></a>
 </div>
@@ -23,10 +23,10 @@ This tool lets you add/remove redirections in seconds.
 - Mobile responsive
 
 ## Requirements
-- Node.js >= 14
+- PHP >= 7.4 with the `curl` extension (any PHP hosting works — shared hosting, Apache/mod_php, nginx/Caddy + PHP-FPM)
 - OVH API credentials → [Create API Keys](https://eu.api.ovh.com/createToken/) with rights :
   - GET on `/email/domain/*`
-  - POSTE on `/email/domain/*`
+  - POST on `/email/domain/*`
   - DELETE on `/email/domain/*`
 
 # Setup
@@ -36,40 +36,49 @@ git clone https://github.com/NSO73/Web-Alias-MX-OVH.git
 ```
 
 ## Configuration
-Edit `config.json`:
-```json
-{
-  "port": 8080,
-  "ovh": {
-    "endpoint": "https://eu.api.ovh.com/1.0",
-    "applicationKey": "your_app_key",
-    "applicationSecret": "your_app_secret",
-    "consumerKey": "your_consumer_key"
-  },
-  "domains": {
-    "domain.tld": "you@domain.tld",
-    "other.com": "you@other.com"
-  }
-}
+Copy the example and fill in your values:
+```bash
+cp config.example.php config.php
+```
+```php
+<?php
+return [
+  'ovh' => [
+    'endpoint'          => 'https://eu.api.ovh.com/1.0',
+    'applicationKey'    => 'your_app_key',
+    'applicationSecret' => 'your_app_secret',
+    'consumerKey'       => 'your_consumer_key',
+  ],
+  'domains' => [
+    'domain.tld' => 'you@domain.tld',
+    'other.com'  => 'you@other.com',
+  ],
+];
 ```
 Each domain key maps to a default destination email (pre-filled in the form).
+`config.php` is executed by PHP (never served as plain text), so your secrets stay private. Keep it out of version control (a `.gitignore` rule is included) and `chmod 600` it on the server.
 
 ## Run
+Serve the project folder with any PHP-capable web server. The web server serves the static files (`index.html`, `style.css`, `app.js`) and runs `api.php`.
+
+For a quick local test, use PHP's built-in server:
 ```bash
-node server.js
+php -S localhost:8080
 ```
 Open http://localhost:8080
 
 # More
-## Caddy - Reverse proxy
-The app has no built-in authentication. You should add `basic_auth` (or any other auth mechanism) at the reverse proxy level to protect access.
+## Caddy + PHP-FPM
+The app has no built-in authentication. You should add `basic_auth` (or any other auth mechanism) at the web server level to protect access.
 
 ```
 domain.tld {
     basic_auth {
         user hash_bcrypt
     }
-    reverse_proxy localhost:8080
+    root * /path/to/Web-Alias-MX-OVH
+    php_fastcgi unix//run/php/php-fpm.sock
+    file_server
 }
 ```
 Generate hash_bcrypt with:
@@ -77,37 +86,16 @@ Generate hash_bcrypt with:
 caddy hash-password --plaintext "password"
 ```
 
-## Service systemd
-```
-cat > /etc/systemd/system/web-alias-mx-ovh.service <<'EOF'
-[Unit]
-Description=Web Alias MX OVH
-After=network.target
-
-[Service]
-Type=simple
-User=user
-Group=group
-WorkingDirectory=/folder_path/Web-Alias-MX-OVH
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-Edit user, group and /folder_path/Web-Alias-MX-OVH.
-```bash
-systemctl daemon-reload
-systemctl enable --now web-alias-mx-ovh
-systemctl status web-alias-mx-ovh
-```
+## Apache / nginx
+Any standard PHP setup works too — just point the document root at the project folder so `index.html` is served and `.php` files are executed by PHP-FPM/mod_php. No process to keep running, no port to manage.
 
 # Notes
-- The server binds to `127.0.0.1` only (not exposed to the network)
-- The API proxy is restricted to `/email/domain/` endpoints and configured domains only
+- The OVH proxy is restricted to `/email/domain/` endpoints and configured domains only
+- `config.php` is never exposed (executed by PHP, not served as a static file)
 - Use [DarkReader](https://darkreader.org/) for dark theme
+
+## Legacy Node.js version
+This project used to run as a single `node server.js`. That version is preserved at the [`v1.1-node`](../../releases/tag/v1.1-node) tag if you need it.
 
 # License
 [WTFPL](LICENSE)

@@ -7,7 +7,7 @@ const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" st
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-const api = (path, opts) => fetch(`/api/ovh/email/domain/${selectedDomain}/redirection${path}`, opts).then(async r => {
+const api = (path, opts) => fetch(`/api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts).then(async r => {
   const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
   if (!r.ok) throw new Error(data?.message || `Error ${r.status}`);
   return data;
@@ -105,7 +105,7 @@ dom.list.addEventListener('click', async e => {
 
 (async () => {
   try {
-    const { domains: d } = await (await fetch('/api/config')).json();
+    const { domains: d } = await (await fetch('/api.php?action=config')).json();
     domains = d;
     const keys = Object.keys(d);
     const saved = localStorage.getItem('lastDomain');
