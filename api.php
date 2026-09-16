@@ -146,31 +146,50 @@ function ovh_request(array $ovh, string $method, string $apiPath, string $body):
 }
 
 /**
- * Run several signed GETs at once, in bounded batches, returning [path => [status, body]].
+ * Run several signed GETs through a sliding window, returning [path => [status, body]].
  * The OVH collection endpoint only yields ids, so one detail call per id is unavoidable --
  * running them in parallel server-side turns N browser round trips into one.
+ *
+ * One multi handle for the whole run, on purpose: its connection cache is what lets the
+ * later calls skip the TLS handshake. Refilling the window as each transfer completes,
+ * rather than in fixed batches, also keeps the slowest call of a batch from stalling the
+ * eleven others behind it.
  */
 function ovh_get_many(array $ovh, array $apiPaths): array {
   $results = [];
-  foreach (array_chunk($apiPaths, MAX_CONCURRENCY) as $chunk) {
-    $multi = curl_multi_init();
-    $handles = [];
-    foreach ($chunk as $path) {
-      $ch = ovh_handle($ovh, 'GET', $path, '');
+  $paths = array_values($apiPaths);
+  $total = count($paths);
+  $next = 0;
+  $active = [];
+  $multi = curl_multi_init();
+
+  while ($next < $total || $active) {
+    while ($next < $total && count($active) < MAX_CONCURRENCY) {
+      $ch = ovh_handle($ovh, 'GET', $paths[$next], '');
       curl_multi_add_handle($multi, $ch);
-      $handles[$path] = $ch;
+      $active[] = [$ch, $paths[$next]];
+      $next++;
     }
-    do {
-      $state = curl_multi_exec($multi, $running);
-      if ($running) curl_multi_select($multi, 1.0);
-    } while ($running && $state === CURLM_OK);
-    foreach ($handles as $path => $ch) {
-      $results[$path] = [(int) curl_getinfo($ch, CURLINFO_HTTP_CODE), (string) curl_multi_getcontent($ch)];
+    curl_multi_exec($multi, $running);
+
+    while ($done = curl_multi_info_read($multi)) {
+      $ch = $done['handle'];
+      foreach ($active as $i => $pair) {
+        if ($pair[0] !== $ch) continue;
+        $results[$pair[1]] = [(int) curl_getinfo($ch, CURLINFO_HTTP_CODE), (string) curl_multi_getcontent($ch)];
+        unset($active[$i]);
+        break;
+      }
       curl_multi_remove_handle($multi, $ch);
       curl_close($ch);
     }
-    curl_multi_close($multi);
+    $active = array_values($active);
+
+    // -1 means curl has no socket to wait on yet; a short sleep avoids a spin.
+    if ($active && curl_multi_select($multi, 1.0) === -1) usleep(1000);
   }
+
+  curl_multi_close($multi);
   return $results;
 }
 
