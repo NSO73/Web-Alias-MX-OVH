@@ -19,14 +19,14 @@ select { font-size: 1rem; font-weight: 500; padding: .6rem 2.25rem .6rem .75rem;
 select:focus, input:focus { outline: none; border-color: var(--primary); }
 .input-group { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius); background: var(--input-bg); transition: border-color .15s; }
 .input-group:focus-within { border-color: var(--primary); }
-.input-group input { flex: 1; min-width: 0; border: 0 !important; border-radius: var(--radius) 0 0 var(--radius); background: transparent !important; box-shadow: none !important; outline: none; }
+.input-group input { flex: 1; min-width: 0; border: 0; border-radius: var(--radius) 0 0 var(--radius); background: transparent; outline: none; }
 .input-suffix { display: flex; align-items: center; padding: 0 .75rem; border: none; border-left: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text); font-size: .9rem; font-family: inherit; white-space: nowrap; }
 .input-group.expanded .input-suffix { display: none; }
 .form-row { display: flex; gap: .5rem; align-items: flex-end; }
 .form-row .field-grow { margin-bottom: 0; }
 .form-row .arrow { color: var(--muted); font-size: 1.1rem; flex-shrink: 0; padding-bottom: .45rem; }
-button { border: none; border-radius: var(--radius); font-size: .875rem; font-weight: 500; cursor: pointer; transition: all .15s; }
-.btn-square { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--input-bg); color: var(--muted); cursor: pointer; padding: 0; transition: all .15s; }
+button { border: none; border-radius: var(--radius); font-size: .875rem; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+.btn-square { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); background: var(--input-bg); color: var(--muted); padding: 0; }
 .btn-square svg { width: 14px; height: 14px; }
 .btn-square:hover { border-color: currentColor; }
 .btn-square:disabled { opacity: .4; cursor: not-allowed; }
@@ -50,7 +50,7 @@ tr:hover td { background: var(--hover-row); }
   .form-row .arrow { display: none; }
   .form-row .field-grow { flex: 1 1 100%; }
   .card-table { padding: 1.25rem; }
-  table, tbody, tr, td { display: block; width: 100%; border: 0 !important; border-color: transparent !important; }
+  table, tbody, tr, td { display: block; width: 100%; border: 0; }
   tbody { display: flex; flex-direction: column; gap: .5rem; }
   tr { padding: .625rem .75rem; padding-right: 2.75rem; background: var(--bg); border-radius: 6px; position: relative; }
   td { padding: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
