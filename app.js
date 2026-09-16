@@ -1,36 +1,66 @@
+'use strict';
+
 const $ = id => document.getElementById(id);
-const dom = { domain: $('domain'), from: $('from'), to: $('to'), form: $('add-form'), btn: $('add-btn'), list: $('list'), msg: $('message'), count: $('count'), fromToggle: $('from-toggle'), fromSuffix: $('from-suffix') };
+const dom = {
+  domain: $('domain'), from: $('from'), to: $('to'), form: $('add-form'), btn: $('add-btn'),
+  list: $('list'), note: $('list-note'), table: $('table'), rows: $('rows'), count: $('count'),
+  msg: $('message'), fromToggle: $('from-toggle'), fromSuffix: $('from-suffix'), rowTpl: $('row-tpl'),
+};
+
+// Namespaced: an unprefixed key would collide with anything else served from this origin.
+const STORE_KEY = 'wamx:lastDomain';
+// api.php allows 30 s per OVH call; this is the ceiling past which the page stops waiting
+// and says so, rather than leaving a spinner up for good.
+const REQUEST_TIMEOUT = 40000;
+const MSG_TIMEOUT = 4000;
+// Catches the empty side and the "user@other.com@domain.tld" case; the rest is OVH's call.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+$/;
 
 let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false, listRequest = 0;
 
-const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg>';
+// localStorage throws outright in some privacy modes, which would otherwise take the whole
+// page down on load. Remembering the last domain is a convenience, never a requirement.
+const store = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch { /* nothing to do */ } },
+};
 
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-
-async function request(url, opts) {
-  const r = await fetch(url, opts);
-  const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+async function request(url, opts = {}) {
+  let r;
+  try {
+    r = await fetch(url, { ...opts, signal: AbortSignal.timeout?.(REQUEST_TIMEOUT) });
+  } catch (err) {
+    throw new Error(err.name === 'TimeoutError' ? 'The server did not answer in time' : 'Network error');
+  }
+  const data = r.headers.get('content-type')?.includes('json') ? await r.json().catch(() => null) : null;
   if (!r.ok) throw new Error(data?.message || `Error ${r.status}`);
   return data;
 }
 
 const api = (path, opts) => request(`api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts);
 
-function showMsg(text, ok) {
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function showMsg(text, kind) {
   clearTimeout(msgTimer);
-  dom.msg.innerHTML = `<div class="msg ${ok ? 'msg-ok' : 'msg-err'}">${esc(text)}</div>`;
-  msgTimer = setTimeout(() => dom.msg.innerHTML = '', 4000);
+  const box = document.createElement('div');
+  box.className = `msg msg-${kind}`;
+  box.textContent = text;
+  dom.msg.replaceChildren(box);
+  msgTimer = setTimeout(() => dom.msg.replaceChildren(), MSG_TIMEOUT);
 }
 
-function getFromValue() {
-  const val = dom.from.value.trim();
-  return fromExpanded ? val : val + '@' + selectedDomain;
+/** The one line above the table: loading, empty, an error, or a partial-list warning. */
+function setNote(text, kind) {
+  dom.note.hidden = text === '';
+  dom.note.className = kind ? `list-note msg msg-${kind}` : 'list-note';
+  dom.note.textContent = text;
 }
 
 function setDomain(d) {
   const prev = selectedDomain;
   selectedDomain = d;
-  localStorage.setItem('lastDomain', d);
+  store.set(STORE_KEY, d);
   dom.to.value = domains[d] || '';
   dom.fromSuffix.textContent = '@' + d;
   if (fromExpanded) {
@@ -47,38 +77,50 @@ dom.fromToggle.addEventListener('click', () => {
   if (fromExpanded) {
     const prefix = dom.from.value.trim();
     dom.from.value = prefix ? prefix + '@' + selectedDomain : '@' + selectedDomain;
-    group.classList.add('expanded');
-    dom.fromToggle.classList.add('active');
   } else {
     const val = dom.from.value.trim();
     const at = val.indexOf('@');
     dom.from.value = at > 0 ? val.slice(0, at) : (at === 0 ? '' : val);
-    group.classList.remove('expanded');
-    dom.fromToggle.classList.remove('active');
   }
+  group.classList.toggle('expanded', fromExpanded);
+  dom.fromToggle.classList.toggle('active', fromExpanded);
   dom.from.focus();
 });
+
+/** Rows are built as nodes, so no value coming back from OVH is ever parsed as markup. */
+function renderRows(items) {
+  const frag = document.createDocumentFragment();
+  for (const item of items) {
+    const row = dom.rowTpl.content.firstElementChild.cloneNode(true);
+    row.querySelector('.td-from').textContent = item.from;
+    row.querySelector('.td-to').textContent = item.to;
+    const btn = row.querySelector('.btn-del');
+    btn.dataset.id = String(item.id);
+    btn.setAttribute('aria-label', `Delete the redirection from ${item.from}`);
+    frag.append(row);
+  }
+  dom.rows.replaceChildren(frag);
+}
 
 async function fetchList() {
   // Switching domains twice in a row must not let the slower response win the race.
   const token = ++listRequest;
   dom.list.setAttribute('aria-busy', 'true');
-  dom.list.innerHTML = '<div class="spinner">Loading...</div>';
+  dom.table.hidden = true;
   dom.count.textContent = '';
+  setNote('Loading…', '');
   try {
-    const items = await request(`api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`);
+    const { items = [], unread = 0 } = await request(`api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`) ?? {};
     if (token !== listRequest) return;
-    dom.count.textContent = `${items.length} redirection${items.length !== 1 ? 's' : ''}`;
-    if (!items.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
-
-    dom.list.innerHTML = '<table><thead><tr><th scope="col">Source</th><th scope="col">Destination</th>'
-      + '<th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>' + items.map(r =>
-      `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" aria-label="Delete the redirection from ${esc(r.from)}" title="Delete">${TRASH_SVG}</button></td></tr>`
-    ).join('') + '</tbody></table>';
+    renderRows(items);
+    dom.table.hidden = items.length === 0;
+    dom.count.textContent = plural(items.length, 'redirection');
+    // An incomplete list looks exactly like a correct one, so say it out loud.
+    if (unread > 0) setNote(`${plural(unread, 'redirection')} could not be read from OVH — this list is incomplete.`, 'warn');
+    else setNote(items.length ? '' : 'No redirections', '');
   } catch (err) {
     if (token !== listRequest) return;
-    console.error(err);
-    dom.list.innerHTML = `<div class="msg msg-err">${esc(err.message)}</div>`;
+    setNote(err.message, 'err');
   } finally {
     if (token === listRequest) dom.list.setAttribute('aria-busy', 'false');
   }
@@ -88,39 +130,58 @@ dom.domain.addEventListener('change', () => { setDomain(dom.domain.value); fetch
 
 dom.form.addEventListener('submit', async e => {
   e.preventDefault();
-  const from = getFromValue(), to = dom.to.value.trim();
-  const at = from.indexOf('@');
-  if (at < 1) { showMsg(`Source must have a username before @`, false); return; }
+  const typed = dom.from.value.trim(), to = dom.to.value.trim();
+  // Collapsed, the field holds a username and the domain is appended: letting a full address
+  // through here used to build "user@other.com@domain.tld" and hand it to OVH to reject.
+  if (!fromExpanded && typed.includes('@')) {
+    showMsg('Use the pencil button to enter a full address', 'err');
+    return;
+  }
+  const from = fromExpanded ? typed : `${typed}@${selectedDomain}`;
+  if (!EMAIL_RE.test(from)) { showMsg('Source is not a valid address', 'err'); return; }
 
   dom.btn.disabled = true;
   try {
     await api('', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, localCopy: false }) });
-    showMsg('Redirection added', true);
+    showMsg('Redirection added', 'ok');
     dom.from.value = fromExpanded ? '@' + selectedDomain : '';
-    fetchList();
-  } catch (err) { showMsg(err.message, false); }
+    await fetchList();
+  } catch (err) { showMsg(err.message, 'err'); }
   finally { dom.btn.disabled = false; }
 });
 
-dom.list.addEventListener('click', async e => {
-  const btn = e.target.closest('.del-btn');
+dom.rows.addEventListener('click', async e => {
+  const btn = e.target.closest('.btn-del');
   if (!btn || !confirm('Delete this redirection?')) return;
-  const prev = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '&hellip;';
-  try { await api(`/${btn.dataset.id}`, { method: 'DELETE' }); showMsg('Redirection deleted', true); fetchList(); }
-  catch (err) { showMsg(err.message, false); btn.disabled = false; btn.innerHTML = prev; }
+  try {
+    await api(`/${btn.dataset.id}`, { method: 'DELETE' });
+    showMsg('Redirection deleted', 'ok');
+    await fetchList();
+  } catch (err) {
+    showMsg(err.message, 'err');
+    btn.disabled = false;
+  }
 });
 
 (async () => {
   try {
-    const { domains: d } = await request('api.php?action=config');
-    domains = d;
-    const keys = Object.keys(d);
-    const saved = localStorage.getItem('lastDomain');
+    const { domains: loaded } = await request('api.php?action=config') ?? {};
+    domains = loaded || {};
+    const keys = Object.keys(domains);
+    if (!keys.length) {
+      setNote('No domain configured — add one to the "domains" list in config.php', 'err');
+      for (const el of [dom.domain, dom.from, dom.to, dom.btn, dom.fromToggle]) el.disabled = true;
+      dom.list.setAttribute('aria-busy', 'false');
+      return;
+    }
+    const saved = store.get(STORE_KEY);
     selectedDomain = keys.includes(saved) ? saved : keys[0];
-    dom.domain.innerHTML = keys.map(k => `<option value="${esc(k)}"${k === selectedDomain ? ' selected' : ''}>${esc(k)}</option>`).join('');
+    dom.domain.replaceChildren(...keys.map(k => new Option(k, k, false, k === selectedDomain)));
     setDomain(selectedDomain);
-    fetchList();
-  } catch { dom.list.innerHTML = '<div class="msg msg-err">Failed to load configuration</div>'; }
+    await fetchList();
+  } catch (err) {
+    setNote(err.message || 'Failed to load configuration', 'err');
+    dom.list.setAttribute('aria-busy', 'false');
+  }
 })();

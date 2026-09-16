@@ -14,4 +14,12 @@ return [
     'domain.tld' => 'you@domain.tld',
     'other.com'  => 'you@other.com',
   ],
+  // Seconds a complete listing may be reused for, which makes switching between domains
+  // instant. The trade-off is freshness: a change made in the OVH panel takes this long to
+  // show up here. Set 0 to always ask OVH. Needs apcu; without it there is no list cache.
+  'list_cache_ttl' => 10,
+  // Fail-safe, off by default. Authentication is the web server's job (see the README), and
+  // turning this on makes a vhost that forgot it answer 401 instead of serving the app to
+  // anyone. It needs the server to pass the authenticated user through as REMOTE_USER.
+  'require_auth' => false,
 ];

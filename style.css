@@ -1,9 +1,56 @@
-:root { --shadow: 0 1px 3px rgba(0,0,0,.08); --bg: #f0f2f5; --card: #fff; --input-bg: #fff; --primary: #2563eb; --danger: #dc2626; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb; --radius: 8px; --hover-row: #f9fafb; --toggle-active-bg: #eff6ff; --msg-ok-bg: #ecfdf5; --msg-ok-text: #065f46; --msg-ok-border: #a7f3d0; --msg-err-bg: #fef2f2; --msg-err-text: #991b1b; --msg-err-border: #fecaca; }
+:root {
+  color-scheme: light dark;
+  --bg: #f0f2f5;
+  --card: #fff;
+  --input-bg: #fff;
+  --primary: #2563eb;
+  --danger: #dc2626;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --hover-row: #f9fafb;
+  --toggle-active-bg: #eff6ff;
+  --msg-ok-bg: #ecfdf5;
+  --msg-ok-text: #065f46;
+  --msg-ok-border: #a7f3d0;
+  --msg-warn-bg: #fffbeb;
+  --msg-warn-text: #92400e;
+  --msg-warn-border: #fde68a;
+  --msg-err-bg: #fef2f2;
+  --msg-err-text: #991b1b;
+  --msg-err-border: #fecaca;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --btn-size: 36px;
+  --btn-size-sm: 32px;
+}
 @media (prefers-color-scheme: dark) {
-  :root { --shadow: 0 1px 3px rgba(0,0,0,.5); --bg: #0b0f14; --card: #161b22; --input-bg: #1f252e; --primary: #60a5fa; --danger: #f87171; --text: #e6e8eb; --muted: #9aa4b2; --border: #2d3540; --hover-row: #1c222a; --toggle-active-bg: #1b2b45; --msg-ok-bg: #0c2f24; --msg-ok-text: #6ee7b7; --msg-ok-border: #14543f; --msg-err-bg: #3a1417; --msg-err-text: #fca5a5; --msg-err-border: #7f2226; }
+  :root {
+    --bg: #0b0f14;
+    --card: #161b22;
+    --input-bg: #1f252e;
+    --primary: #60a5fa;
+    --danger: #f87171;
+    --text: #e6e8eb;
+    --muted: #9aa4b2;
+    --border: #2d3540;
+    --hover-row: #1c222a;
+    --toggle-active-bg: #1b2b45;
+    --msg-ok-bg: #0c2f24;
+    --msg-ok-text: #6ee7b7;
+    --msg-ok-border: #14543f;
+    --msg-warn-bg: #3a2c0b;
+    --msg-warn-text: #fcd34d;
+    --msg-warn-border: #78500f;
+    --msg-err-bg: #3a1417;
+    --msg-err-text: #fca5a5;
+    --msg-err-border: #7f2226;
+    --shadow: 0 1px 3px rgba(0,0,0,.5);
+  }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 2rem 1rem; color-scheme: light dark; }
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 2rem 1rem; }
 .container { max-width: 700px; margin: 0 auto; }
 h1 { font-size: 1.5rem; margin-bottom: 1.5rem; text-align: center; }
 .card { background: var(--card); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
@@ -21,20 +68,21 @@ select { font-size: 1rem; font-weight: 500; padding: .6rem 2.25rem .6rem .75rem;
 .select-wrap svg { position: absolute; right: .65rem; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; pointer-events: none; color: var(--muted); }
 select:focus, input:focus { outline: none; border-color: var(--primary); }
 select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+select:disabled, input:disabled { opacity: .5; cursor: not-allowed; }
 .input-group input:focus-visible { outline: none; }
 .input-group:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
 .input-group { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius); background: var(--input-bg); transition: border-color .15s; }
 .input-group:focus-within { border-color: var(--primary); }
 .input-group input { flex: 1; min-width: 0; border: 0; border-radius: var(--radius) 0 0 var(--radius); background: transparent; outline: none; }
 .input-suffix { display: flex; align-items: center; padding: 0 .75rem; border: none; border-left: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text); font-size: .9rem; font-family: inherit; white-space: nowrap; }
-.input-group.expanded .input-suffix { display: none; }
+.input-group.expanded .input-suffix, .input-suffix:empty { display: none; }
 .form-row { display: flex; gap: .5rem; align-items: flex-end; }
 .form-row .field-grow { margin-bottom: 0; }
 .form-row .arrow { color: var(--muted); font-size: 1.1rem; flex-shrink: 0; padding-bottom: .45rem; }
 button { border: none; border-radius: var(--radius); font-size: .875rem; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
-.btn-square { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); background: transparent; color: var(--muted); padding: 0; }
+.btn-square { display: inline-flex; align-items: center; justify-content: center; width: var(--btn-size); height: var(--btn-size); flex-shrink: 0; border: 1px solid var(--border); background: transparent; color: var(--muted); padding: 0; }
 .btn-square svg { width: 14px; height: 14px; }
-.btn-square:hover { border-color: currentColor; }
+.btn-square:hover:not(:disabled) { border-color: currentColor; }
 .btn-square:disabled { opacity: .4; cursor: not-allowed; }
 .btn-square.active { background: var(--toggle-active-bg); border-color: currentColor; }
 .btn-square.btn-add { color: var(--primary); }
@@ -43,14 +91,18 @@ table { width: 100%; border-collapse: collapse; font-size: .875rem; }
 th { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--border); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--hover-row); }
 .td-actions { width: 1%; white-space: nowrap; text-align: center; }
+@media (hover: hover) {
+  tbody tr:hover td { background: var(--hover-row); }
+}
 .msg { padding: .625rem 1rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: .875rem; animation: fadeIn .2s; }
 .msg-ok { background: var(--msg-ok-bg); color: var(--msg-ok-text); border: 1px solid var(--msg-ok-border); }
+.msg-warn { background: var(--msg-warn-bg); color: var(--msg-warn-text); border: 1px solid var(--msg-warn-border); }
 .msg-err { background: var(--msg-err-bg); color: var(--msg-err-text); border: 1px solid var(--msg-err-border); }
+.list-note { text-align: center; padding: 1.5rem; color: var(--muted); }
+.list-note.msg { text-align: left; padding: .625rem .75rem; margin-bottom: .5rem; }
+.card-table:has(table[hidden]) .list-note.msg { margin-bottom: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.spinner { text-align: center; padding: 1.5rem; color: var(--muted); }
-.empty { text-align: center; padding: 1.5rem; color: var(--muted); font-style: italic; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .msg { animation: none; }
@@ -62,14 +114,15 @@ tr:hover td { background: var(--hover-row); }
   .form-row .arrow { display: none; }
   .form-row .field-grow { flex: 1 1 100%; }
   .card-table { padding: 1.25rem; }
-  thead { display: none; }
+  /* The header row goes off-screen rather than away: the card layout below has no room for
+     it, but removing it outright would strip every cell of its column header too. */
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   table, tbody, tr, td { display: block; width: 100%; border: 0; }
   tbody { display: flex; flex-direction: column; gap: .5rem; }
-  tr { padding: .625rem .75rem; padding-right: 2.75rem; background: var(--bg); border-radius: 6px; position: relative; }
+  tr { padding: .625rem .75rem; padding-right: 2.75rem; background: var(--bg); border-radius: var(--radius-sm); position: relative; }
   td { padding: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  td:first-child { font-weight: 600; }
-  td:nth-child(2) { color: var(--muted); }
-  tr:hover td { background: transparent; }
+  .td-from { font-weight: 600; }
+  .td-to { color: var(--muted); }
   .td-actions { position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); width: auto; }
-  .btn-square.btn-del { width: 32px; height: 32px; }
+  .btn-square.btn-del { width: var(--btn-size-sm); height: var(--btn-size-sm); }
 }
