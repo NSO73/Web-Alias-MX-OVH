@@ -1,1 +1,8 @@
 config.php
+
+# Editors and OS cruft
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
