@@ -3,7 +3,7 @@ const dom = { domain: $('domain'), from: $('from'), to: $('to'), form: $('add-fo
 
 let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false, listRequest = 0;
 
-const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg>';
+const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg>';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -43,6 +43,7 @@ function setDomain(d) {
 dom.fromToggle.addEventListener('click', () => {
   const group = dom.from.closest('.input-group');
   fromExpanded = !fromExpanded;
+  dom.fromToggle.setAttribute('aria-pressed', String(fromExpanded));
   if (fromExpanded) {
     const prefix = dom.from.value.trim();
     dom.from.value = prefix ? prefix + '@' + selectedDomain : '@' + selectedDomain;
@@ -61,6 +62,7 @@ dom.fromToggle.addEventListener('click', () => {
 async function fetchList() {
   // Switching domains twice in a row must not let the slower response win the race.
   const token = ++listRequest;
+  dom.list.setAttribute('aria-busy', 'true');
   dom.list.innerHTML = '<div class="spinner">Loading...</div>';
   dom.count.textContent = '';
   try {
@@ -69,13 +71,16 @@ async function fetchList() {
     dom.count.textContent = `${items.length} redirection${items.length !== 1 ? 's' : ''}`;
     if (!items.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
 
-    dom.list.innerHTML = '<table><tbody>' + items.map(r =>
-      `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" title="Delete">${TRASH_SVG}</button></td></tr>`
+    dom.list.innerHTML = '<table><thead><tr><th scope="col">Source</th><th scope="col">Destination</th>'
+      + '<th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>' + items.map(r =>
+      `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" aria-label="Delete the redirection from ${esc(r.from)}" title="Delete">${TRASH_SVG}</button></td></tr>`
     ).join('') + '</tbody></table>';
   } catch (err) {
     if (token !== listRequest) return;
     console.error(err);
     dom.list.innerHTML = `<div class="msg msg-err">${esc(err.message)}</div>`;
+  } finally {
+    if (token === listRequest) dom.list.setAttribute('aria-busy', 'false');
   }
 }
 

@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirections OVH Mails</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%232563eb' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'><rect x='1.5' y='3.5' width='13' height='9' rx='1.5'/><path d='M1.5 4.5L8 9l6.5-4.5'/></svg>">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#f0f2f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)">
+  <title>Web Alias MX OVH</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%232563eb'%20stroke-width='1.2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x='1.5'%20y='3.5'%20width='13'%20height='9'%20rx='1.5'/%3E%3Cpath%20d='M1.5%204.5L8%209l6.5-4.5'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
-  <h1>Redirections OVH Mails</h1>
+  <h1>Web Alias MX OVH</h1>
   <div class="card">
     <div class="field">
       <div class="field-header">
@@ -18,7 +21,7 @@
       </div>
       <div class="select-wrap">
         <select id="domain"></select>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4"/></svg>
       </div>
     </div>
     <form id="add-form">
@@ -30,23 +33,23 @@
               <input type="text" id="from" required>
               <span class="input-suffix" id="from-suffix"></span>
             </div>
-            <button type="button" class="btn-square" id="from-toggle" title="Edit full address"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 1.5l3 3-9.5 9.5H2v-3z"/></svg></button>
+            <button type="button" class="btn-square" id="from-toggle" aria-pressed="false" aria-label="Edit the full address" title="Edit full address"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.5 1.5l3 3-9.5 9.5H2v-3z"/></svg></button>
           </div>
         </div>
-        <span class="arrow">&rarr;</span>
+        <span class="arrow" aria-hidden="true">&rarr;</span>
         <div class="field field-grow">
           <label for="to">Destination</label>
           <div class="field-inline">
             <input type="email" id="to" required>
-            <button type="submit" class="btn-square btn-add" id="add-btn" title="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+            <button type="submit" class="btn-square btn-add" id="add-btn" aria-label="Add redirection" title="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M8 3v10M3 8h10"/></svg></button>
           </div>
         </div>
       </div>
     </form>
   </div>
-  <div id="message"></div>
+  <div id="message" role="status" aria-live="polite"></div>
   <div class="card card-table">
-    <div id="list"><div class="spinner">Loading...</div></div>
+    <div id="list" aria-busy="true"><div class="spinner">Loading...</div></div>
   </div>
 </div>
 <script src="app.js"></script>
