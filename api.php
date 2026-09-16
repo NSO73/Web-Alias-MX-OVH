@@ -7,6 +7,8 @@
 declare(strict_types=1);
 
 const JSON_CT = 'application/json; charset=utf-8';
+const MAX_BODY = 65536;
+const TIME_DELTA_TTL = 3600;
 
 // The only sub-path the proxy will forward. An allowlist, not a denylist: neither a
 // traversal (plain or double-encoded) nor a smuggled query string can widen the
@@ -18,6 +20,8 @@ const OVH_PATH_RE = '~^(?<domain>[A-Za-z0-9.-]+)/redirection(?:/(?<id>\d+))?$~D'
 function send(int $status, string $contentType, string $body): void {
   http_response_code($status);
   header('Content-Type: ' . $contentType);
+  header('Cache-Control: no-store');
+  header('X-Content-Type-Options: nosniff');
   echo $body;
   exit;
 }
@@ -50,6 +54,9 @@ if (!is_file($configFile)) {
   fail(500, 'Config file not found — copy config.example.php to config.php');
 }
 $config = require $configFile;
+if (!is_array($config) || !isset($config['ovh'], $config['domains']) || !is_array($config['domains'])) {
+  fail(500, 'Config file must return an array with "ovh" and "domains" keys');
+}
 $ovh = $config['ovh'];
 
 // --- OVH client --------------------------------------------------------------
@@ -60,20 +67,41 @@ function ovh_sign(array $ovh, string $method, string $url, string $body, int $ts
   return '$1$' . sha1($s);
 }
 
-/** Clock delta with OVH (server_time - local_time), cached ~5 min via APCu when available. */
+/**
+ * Clock delta with OVH (server_time - local_time). Memoised per request, then cached in
+ * APCu, then on disk — without a shared cache every proxied call would probe /auth/time
+ * first, doubling the round trips. A failed probe is never cached: storing the fallback
+ * zero would keep signing with a wrong clock for the whole TTL.
+ */
 function ovh_time_delta(array $ovh): int {
+  static $memo = null;
+  if ($memo !== null) return $memo;
+
   $key = 'ovh_time_delta';
-  if (function_exists('apcu_fetch')) {
+  $file = sys_get_temp_dir() . '/wamx-ovh-time-delta';
+  $hasApcu = function_exists('apcu_fetch');
+  if ($hasApcu) {
     $cached = apcu_fetch($key, $ok);
-    if ($ok) return (int) $cached;
+    if ($ok) return $memo = (int) $cached;
+  } elseif (is_file($file) && time() - (int) filemtime($file) < TIME_DELTA_TTL) {
+    $raw = trim((string) file_get_contents($file));
+    if (is_numeric($raw)) return $memo = (int) $raw;
   }
+
   $ch = curl_init($ovh['endpoint'] . '/auth/time');
-  curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 5,
+    CURLOPT_TIMEOUT => 10,
+  ]);
   $resp = curl_exec($ch);
   curl_close($ch);
-  $delta = ($resp !== false && is_numeric(trim($resp))) ? ((int) trim($resp) - time()) : 0;
-  if (function_exists('apcu_store')) apcu_store($key, $delta, 300);
-  return $delta;
+  if ($resp === false || !is_numeric(trim((string) $resp))) return $memo = 0;
+
+  $memo = (int) trim((string) $resp) - time();
+  if ($hasApcu) apcu_store($key, $memo, TIME_DELTA_TTL);
+  else @file_put_contents($file, (string) $memo, LOCK_EX);
+  return $memo;
 }
 
 /** Forward a signed request to the OVH API, returning [status, contentType, body]. */
@@ -92,6 +120,7 @@ function ovh_request(array $ovh, string $method, string $apiPath, string $body):
   curl_setopt_array($ch, [
     CURLOPT_CUSTOMREQUEST => $method,
     CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 5,
     CURLOPT_TIMEOUT => 30,
     CURLOPT_HTTPHEADER => $headers,
   ]);
@@ -126,8 +155,10 @@ if (isset($_GET['ovh'])) {
   if (!preg_match(OVH_PATH_RE, $sub, $m)) fail(400, 'Bad path');
   if (!isset($config['domains'][$m['domain']])) fail(403, 'Domain not allowed');
 
-  $body = file_get_contents('php://input', false, null, 0, 64 * 1024);
-  if ($body === false) $body = '';
+  // Reject oversized bodies outright: truncating them yielded a misleading "Invalid JSON".
+  if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > MAX_BODY) fail(413, 'Payload too large');
+  $body = (string) file_get_contents('php://input', false, null, 0, MAX_BODY + 1);
+  if (strlen($body) > MAX_BODY) fail(413, 'Payload too large');
   if ($body !== '') {
     json_decode($body);
     if (json_last_error() !== JSON_ERROR_NONE) fail(400, 'Invalid JSON');
