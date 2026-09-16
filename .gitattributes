@@ -1,0 +1,4 @@
+# The repository is authored on Windows and deployed on Linux; .editorconfig already asks
+# for LF, and this is what makes Git store it that way whatever the checkout does.
+* text=auto eol=lf
+*.png binary
