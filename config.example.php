@@ -1,6 +1,7 @@
 <?php
 // Copy to config.php and fill in your values:  cp config.example.php config.php
-// config.php is executed by PHP (never served as plain text), so secrets stay private.
+// Best practice: keep this file outside the document root and point WAMX_CONFIG at it,
+// so the secrets are unreachable even if PHP stops executing.
 return [
   'ovh' => [
     'endpoint'          => 'https://eu.api.ovh.com/1.0',

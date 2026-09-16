@@ -42,9 +42,12 @@ function guard_write(string $method): void {
 
 // --- Configuration -----------------------------------------------------------
 
-$configFile = __DIR__ . '/config.php';
+// Kept overridable so config.php can live outside the document root: if PHP ever stops
+// executing (FPM down, vhost mistake), a file inside the root is served as plain text.
+$configFile = (string) (getenv('WAMX_CONFIG') ?: ($_SERVER['WAMX_CONFIG'] ?? ''));
+if ($configFile === '') $configFile = __DIR__ . '/config.php';
 if (!is_file($configFile)) {
-  fail(500, 'config.php not found — copy config.example.php to config.php');
+  fail(500, 'Config file not found — copy config.example.php to config.php');
 }
 $config = require $configFile;
 $ovh = $config['ovh'];
