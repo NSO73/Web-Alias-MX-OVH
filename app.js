@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const dom = { domain: $('domain'), from: $('from'), to: $('to'), form: $('add-form'), btn: $('add-btn'), list: $('list'), msg: $('message'), count: $('count'), fromToggle: $('from-toggle'), fromSuffix: $('from-suffix') };
 
-let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false;
+let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false, listRequest = 0;
 
 const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg>';
 
@@ -14,7 +14,7 @@ async function request(url, opts) {
   return data;
 }
 
-const api = (path, opts) => request(`/api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts);
+const api = (path, opts) => request(`api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts);
 
 function showMsg(text, ok) {
   clearTimeout(msgTimer);
@@ -59,10 +59,13 @@ dom.fromToggle.addEventListener('click', () => {
 });
 
 async function fetchList() {
+  // Switching domains twice in a row must not let the slower response win the race.
+  const token = ++listRequest;
   dom.list.innerHTML = '<div class="spinner">Loading...</div>';
   dom.count.textContent = '';
   try {
-    const items = await request(`/api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`);
+    const items = await request(`api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`);
+    if (token !== listRequest) return;
     dom.count.textContent = `${items.length} redirection${items.length !== 1 ? 's' : ''}`;
     if (!items.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
 
@@ -70,6 +73,7 @@ async function fetchList() {
       `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" title="Delete">${TRASH_SVG}</button></td></tr>`
     ).join('') + '</tbody></table>';
   } catch (err) {
+    if (token !== listRequest) return;
     console.error(err);
     dom.list.innerHTML = `<div class="msg msg-err">${esc(err.message)}</div>`;
   }
@@ -105,12 +109,12 @@ dom.list.addEventListener('click', async e => {
 
 (async () => {
   try {
-    const { domains: d } = await (await fetch('/api.php?action=config')).json();
+    const { domains: d } = await request('api.php?action=config');
     domains = d;
     const keys = Object.keys(d);
     const saved = localStorage.getItem('lastDomain');
     selectedDomain = keys.includes(saved) ? saved : keys[0];
-    dom.domain.innerHTML = keys.map(k => `<option value="${k}"${k === selectedDomain ? ' selected' : ''}>${k}</option>`).join('');
+    dom.domain.innerHTML = keys.map(k => `<option value="${esc(k)}"${k === selectedDomain ? ' selected' : ''}>${esc(k)}</option>`).join('');
     setDomain(selectedDomain);
     fetchList();
   } catch { dom.list.innerHTML = '<div class="msg msg-err">Failed to load configuration</div>'; }
