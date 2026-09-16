@@ -1,6 +1,6 @@
 :root { --shadow: 0 1px 3px rgba(0,0,0,.08); --bg: #f0f2f5; --card: #fff; --input-bg: #fff; --primary: #2563eb; --danger: #dc2626; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb; --radius: 8px; --hover-row: #f9fafb; --toggle-active-bg: #eff6ff; --msg-ok-bg: #ecfdf5; --msg-ok-text: #065f46; --msg-ok-border: #a7f3d0; --msg-err-bg: #fef2f2; --msg-err-text: #991b1b; --msg-err-border: #fecaca; }
 @media (prefers-color-scheme: dark) {
-  :root { --shadow: 0 1px 3px rgba(0,0,0,.5); --bg: #0f1419; --card: #171c22; --input-bg: #1e242c; --primary: #60a5fa; --danger: #f87171; --text: #e6e8eb; --muted: #9aa4b2; --border: #2b323b; --hover-row: #1e242c; --toggle-active-bg: #1b2b45; --msg-ok-bg: #0c2f24; --msg-ok-text: #6ee7b7; --msg-ok-border: #14543f; --msg-err-bg: #3a1417; --msg-err-text: #fca5a5; --msg-err-border: #7f2226; }
+  :root { --shadow: 0 1px 3px rgba(0,0,0,.5); --bg: #0b0f14; --card: #161b22; --input-bg: #1f252e; --primary: #60a5fa; --danger: #f87171; --text: #e6e8eb; --muted: #9aa4b2; --border: #2d3540; --hover-row: #1c222a; --toggle-active-bg: #1b2b45; --msg-ok-bg: #0c2f24; --msg-ok-text: #6ee7b7; --msg-ok-border: #14543f; --msg-err-bg: #3a1417; --msg-err-text: #fca5a5; --msg-err-border: #7f2226; }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 2rem 1rem; color-scheme: light dark; }
@@ -32,7 +32,7 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px s
 .form-row .field-grow { margin-bottom: 0; }
 .form-row .arrow { color: var(--muted); font-size: 1.1rem; flex-shrink: 0; padding-bottom: .45rem; }
 button { border: none; border-radius: var(--radius); font-size: .875rem; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
-.btn-square { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); background: var(--input-bg); color: var(--muted); padding: 0; }
+.btn-square { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--border); background: transparent; color: var(--muted); padding: 0; }
 .btn-square svg { width: 14px; height: 14px; }
 .btn-square:hover { border-color: currentColor; }
 .btn-square:disabled { opacity: .4; cursor: not-allowed; }
