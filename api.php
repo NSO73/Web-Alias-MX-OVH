@@ -2,6 +2,7 @@
 // API backend for Web Alias MX OVH — config + signed OVH email proxy.
 // Served directly by PHP-FPM (no long-running process). Routed via query string:
 //   GET  ?action=config                       → { "domains": { ... } }
+//   GET  ?action=redirections&domain=<domain> → [ { id, from, to }, ... ] sorted by "from"
 //   *    ?ovh=<domain>/redirection[/<id>]     → signed proxy to /email/domain/<same path>
 
 declare(strict_types=1);
@@ -9,6 +10,7 @@ declare(strict_types=1);
 const JSON_CT = 'application/json; charset=utf-8';
 const MAX_BODY = 65536;
 const TIME_DELTA_TTL = 3600;
+const MAX_CONCURRENCY = 12;
 
 // The only sub-path the proxy will forward. An allowlist, not a denylist: neither a
 // traversal (plain or double-encoded) nor a smuggled query string can widen the
@@ -104,8 +106,8 @@ function ovh_time_delta(array $ovh): int {
   return $memo;
 }
 
-/** Forward a signed request to the OVH API, returning [status, contentType, body]. */
-function ovh_request(array $ovh, string $method, string $apiPath, string $body): array {
+/** A signed, ready-to-run curl handle for one OVH call. */
+function ovh_handle(array $ovh, string $method, string $apiPath, string $body) {
   $url = $ovh['endpoint'] . $apiPath;
   $ts = time() + ovh_time_delta($ovh);
   $headers = [
@@ -125,6 +127,12 @@ function ovh_request(array $ovh, string $method, string $apiPath, string $body):
     CURLOPT_HTTPHEADER => $headers,
   ]);
   if ($body !== '') curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+  return $ch;
+}
+
+/** Forward a signed request to the OVH API, returning [status, contentType, body]. */
+function ovh_request(array $ovh, string $method, string $apiPath, string $body): array {
+  $ch = ovh_handle($ovh, $method, $apiPath, $body);
   $resp = curl_exec($ch);
   if ($resp === false) {
     $err = curl_error($ch);
@@ -137,6 +145,35 @@ function ovh_request(array $ovh, string $method, string $apiPath, string $body):
   return [$status, $ct !== '' ? $ct : JSON_CT, $resp];
 }
 
+/**
+ * Run several signed GETs at once, in bounded batches, returning [path => [status, body]].
+ * The OVH collection endpoint only yields ids, so one detail call per id is unavoidable --
+ * running them in parallel server-side turns N browser round trips into one.
+ */
+function ovh_get_many(array $ovh, array $apiPaths): array {
+  $results = [];
+  foreach (array_chunk($apiPaths, MAX_CONCURRENCY) as $chunk) {
+    $multi = curl_multi_init();
+    $handles = [];
+    foreach ($chunk as $path) {
+      $ch = ovh_handle($ovh, 'GET', $path, '');
+      curl_multi_add_handle($multi, $ch);
+      $handles[$path] = $ch;
+    }
+    do {
+      $state = curl_multi_exec($multi, $running);
+      if ($running) curl_multi_select($multi, 1.0);
+    } while ($running && $state === CURLM_OK);
+    foreach ($handles as $path => $ch) {
+      $results[$path] = [(int) curl_getinfo($ch, CURLINFO_HTTP_CODE), (string) curl_multi_getcontent($ch)];
+      curl_multi_remove_handle($multi, $ch);
+      curl_close($ch);
+    }
+    curl_multi_close($multi);
+  }
+  return $results;
+}
+
 // --- Routing -----------------------------------------------------------------
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -144,6 +181,34 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (($_GET['action'] ?? '') === 'config') {
   if ($method !== 'GET') fail(405, 'Method not allowed');
   send(200, JSON_CT, (string) json_encode(['domains' => $config['domains']]));
+}
+
+if (($_GET['action'] ?? '') === 'redirections') {
+  if ($method !== 'GET') fail(405, 'Method not allowed');
+  $domain = (string) ($_GET['domain'] ?? '');
+  if (!isset($config['domains'][$domain])) fail(403, 'Domain not allowed');
+
+  $base = '/email/domain/' . $domain . '/redirection';
+  [$status, , $listBody] = ovh_request($ovh, 'GET', $base, '');
+  if ($status !== 200) send($status, JSON_CT, $listBody);
+  $ids = json_decode($listBody, true);
+  if (!is_array($ids)) fail(502, 'Unexpected response from OVH');
+
+  $items = [];
+  $paths = array_map(static fn($id) => $base . '/' . rawurlencode((string) $id), $ids);
+  foreach (ovh_get_many($ovh, $paths) as [$itemStatus, $itemBody]) {
+    // Skip anything deleted between the two calls rather than failing the whole list.
+    if ($itemStatus !== 200) continue;
+    $item = json_decode($itemBody, true);
+    if (!is_array($item)) continue;
+    $items[] = [
+      'id'   => $item['id'] ?? null,
+      'from' => (string) ($item['from'] ?? ''),
+      'to'   => (string) ($item['to'] ?? ''),
+    ];
+  }
+  usort($items, static fn($a, $b) => strcasecmp($a['from'], $b['from']));
+  send(200, JSON_CT, (string) json_encode($items));
 }
 
 if (isset($_GET['ovh'])) {

@@ -7,11 +7,14 @@ const TRASH_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" st
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-const api = (path, opts) => fetch(`/api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts).then(async r => {
+async function request(url, opts) {
+  const r = await fetch(url, opts);
   const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
   if (!r.ok) throw new Error(data?.message || `Error ${r.status}`);
   return data;
-});
+}
+
+const api = (path, opts) => request(`/api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts);
 
 function showMsg(text, ok) {
   clearTimeout(msgTimer);
@@ -59,12 +62,9 @@ async function fetchList() {
   dom.list.innerHTML = '<div class="spinner">Loading...</div>';
   dom.count.textContent = '';
   try {
-    const ids = await api('');
-    dom.count.textContent = `${ids.length} redirection${ids.length !== 1 ? 's' : ''}`;
-    if (!ids.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
-
-    const items = await Promise.all(ids.map(id => api(`/${id}`)));
-    items.sort((a, b) => a.from.localeCompare(b.from));
+    const items = await request(`/api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`);
+    dom.count.textContent = `${items.length} redirection${items.length !== 1 ? 's' : ''}`;
+    if (!items.length) { dom.list.innerHTML = '<div class="empty">No redirections</div>'; return; }
 
     dom.list.innerHTML = '<table><tbody>' + items.map(r =>
       `<tr><td>${esc(r.from)}</td><td>${esc(r.to)}</td><td class="td-actions"><button class="btn-square btn-del del-btn" data-id="${esc(String(r.id))}" title="Delete">${TRASH_SVG}</button></td></tr>`
