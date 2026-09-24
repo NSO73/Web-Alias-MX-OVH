@@ -1,0 +1,50 @@
+name: ci
+
+# No build step means nothing stands between a typo and the deployed site, so this is the
+# gate. PHP runs on the oldest supported version as well as a current one, which is what
+# keeps the requirement stated in the README honest.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.5']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Syntax
+        run: find . -name '*.php' -print0 | xargs -0 -n1 -t php -l
+      # api.php end to end, against a fake OVH API: see tests/api.test.mjs.
+      - name: API tests
+        run: node --test
+
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # app.js is loaded as a module; the .mjs copy makes Node parse it as one.
+      - name: Syntax
+        run: cp app.js "$RUNNER_TEMP/app.mjs" && node --check "$RUNNER_TEMP/app.mjs"
+
+  css:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Range syntax in media queries
+        run: '! grep -nE "@media[^{]*(min|max)-" style.css'
+      - name: Decimals in tenths or quarters (.0625rem is the hairline token)
+        run: '! grep -noE "[0-9]*\.[0-9]+" style.css | grep -vE ":[0-9]*\.([1-9]|25|75|0625)$"'
+      - name: No px, durations in ms
+        run: '! grep -nE "[0-9](px|s)\b" style.css'
+      - name: Opacity in whole percent
+        run: '! grep -nE "opacity: *[0-9.]+ *[;}]" style.css'

@@ -1,46 +1,46 @@
 <div align="center">
 <h1>Web Alias MX OVH</h1>
-A lightweight web UI to manage OVH email redirections.
+Une interface web légère pour gérer les redirections email OVH.
 
-*Une interface web légère pour gérer les redirections email OVH.*
+*A lightweight web UI to manage OVH email redirections.*
 
-No npm &middot; No build step &middot; No framework &middot; Pure PHP
+Pas de npm &middot; Pas de build &middot; Pas de framework &middot; Du PHP pur
 
-<a href="docs/screenshot.png"><img src="docs/screenshot.png" alt="Screenshot"></a>
+<a href="docs/screenshot.png"><img src="docs/screenshot.png" alt="Capture d'écran, thèmes clair et sombre"></a>
 </div>
 
-## About
-OVH email plans don't support `user+tag@domain.tld` aliases.
-Every time you sign up for a new service, you need a new redirection like `you.service@domain.tld` → `you@domain.tld`, and the OVH admin panel is painfully slow for this.
-This tool lets you add and remove redirections in seconds.
+## Présentation
+Les offres email OVH ne gèrent pas les alias `user+tag@domain.tld`.
+Chaque inscription à un nouveau service demande donc une nouvelle redirection, du genre `you.service@domain.tld` → `you@domain.tld`, et le panneau d'administration OVH est terriblement lent pour ça.
+Cet outil ajoute et supprime des redirections en quelques secondes.
 
-### Features
-- Multi-domain support with domain selector
-- Source field auto-fills `@domain.tld`
-- Remembers last selected domain
-- Alphabetically sorted redirection list
-- Add / delete in one click
-- Light and dark theme, mobile responsive
+### Fonctionnalités
+- Plusieurs domaines, avec un sélecteur
+- Le champ source complète tout seul `@domain.tld`
+- Le dernier domaine choisi est mémorisé
+- Liste des redirections triée par ordre alphabétique
+- Ajout et suppression en un clic
+- Thème clair et sombre natifs, interface adaptée au mobile
 
-### Requirements
-- PHP >= 7.4 with the `curl` extension (any PHP hosting works — shared hosting, Apache/mod_php, nginx/Caddy + PHP-FPM)
-- `apcu` is optional: when present it caches the API clock offset and the last listing. Without it only the clock offset is cached, in a private temp file — a redirection listing never leaves memory, since the fallback directory is shared with whatever else runs on the host
-- OVH API credentials → [create a token](https://eu.api.ovh.com/createToken/) with these rights:
-  - GET on `/email/domain/*`
-  - POST on `/email/domain/*`
-  - DELETE on `/email/domain/*`
+### Prérequis
+- PHP >= 8.2 avec l'extension `curl` (n'importe quel hébergement PHP convient : mutualisé, Apache/mod_php, nginx/Caddy + PHP-FPM)
+- `apcu` est facultatif : s'il est présent, il met en cache le décalage d'horloge avec l'API et la dernière liste de chaque domaine. Sans lui, seul le décalage d'horloge est mis en cache, dans un fichier temporaire privé ; une liste de redirections ne quitte jamais la mémoire, car le répertoire de repli est partagé avec tout ce qui tourne sur la machine
+- Des identifiants API OVH → [créer un jeton](https://eu.api.ovh.com/createToken/) avec ces droits :
+  - GET sur `/email/domain/*`
+  - POST sur `/email/domain/*`
+  - DELETE sur `/email/domain/*`
 
-## Setup
-### 1. Clone
+## Installation
+### 1. Cloner
 ```bash
 git clone https://github.com/NSO73/Web-Alias-MX-OVH.git
 ```
 
-### 2. Configure
+### 2. Configurer
 ```bash
 cp config.example.php config.php
 ```
-Fill in your OVH credentials, then list the domains you want to manage. Each domain key maps to a default destination email, pre-filled in the form:
+Renseigner les identifiants OVH, puis lister les domaines à gérer. Chaque domaine est associé à une adresse de destination par défaut, pré-remplie dans le formulaire :
 
 ```php
 'domains' => [
@@ -49,36 +49,39 @@ Fill in your OVH credentials, then list the domains you want to manage. Each dom
 ],
 ```
 
-`config.php` is ignored by Git and holds your API secrets, so `chmod 600` it. Better still, keep it out of the document root entirely and point `WAMX_CONFIG` at it:
+`config.php` est ignoré par Git et contient les secrets de l'API : le passer en `chmod 600`. Mieux encore, le sortir complètement de la racine web et y faire pointer `WAMX_CONFIG` :
 
 ```bash
 install -m 600 config.php /etc/wamx/config.php
 ```
 
-Two optional config keys tune the rest. `list_cache_ttl` (default `10`) is how many seconds a
-complete listing may be reused for: it makes switching between domains instant, at the cost of
-a change made in the OVH panel taking that long to show up here — set `0` to always ask OVH.
-`require_auth` (default `false`) is covered under [Deployment](#deployment).
+Deux clés facultatives complètent la configuration. `list_cache_ttl` (`10` par défaut) est le nombre de secondes pendant lesquelles une liste complète peut être réutilisée : le passage d'un domaine à l'autre devient instantané, mais une modification faite dans le panneau OVH met autant de temps à apparaître ici. `0` interroge OVH à chaque fois. `require_auth` (`false` par défaut) est décrit dans [Déploiement](#déploiement).
 
-Two environment variables are read, both optional:
+Deux variables d'environnement sont lues, toutes deux facultatives :
 
-| Variable | Default | Purpose |
+| Variable | Par défaut | Rôle |
 |---|---|---|
-| `WAMX_CONFIG` | `config.php` next to `api.php` | Where to read the configuration from |
-| `WAMX_CACHE_DIR` | the system temp directory | Where the file cache lives when `apcu` is absent |
+| `WAMX_CONFIG` | `config.php` à côté de `api.php` | Emplacement de la configuration |
+| `WAMX_CACHE_DIR` | le répertoire temporaire du système | Emplacement du cache fichier quand `apcu` est absent |
 
-### 3. Serve
-Serve the project folder with any PHP-capable web server: it serves the static files (`index.html`, `style.css`, `app.js`) and runs `api.php`. No process to keep running, no port to manage.
+### 3. Servir
+Servir le dossier du projet avec n'importe quel serveur web capable d'exécuter PHP : il sert les fichiers statiques (`index.html`, `style.css`, `app.js`) et exécute `api.php`. Aucun processus à maintenir, aucun port à gérer.
 
-For a quick local test, use PHP's built-in server:
+Pour un test local rapide, le serveur intégré de PHP suffit :
 ```bash
 php -S localhost:8080
 ```
-Open <http://localhost:8080>.
+Ouvrir <http://localhost:8080>.
 
-## Deployment
+### Tests
+```bash
+node --test
+```
+Lancés depuis la racine du dépôt, ils démarrent un faux OVH en HTTPS et le vrai `api.php` derrière `php -S`, puis vérifient chaque route : signature, relance, gardes cross-site, validation, relais des erreurs OVH. Il faut `php` (avec `curl`), `node` et `openssl` dans le PATH. La CI les exécute sur la plus ancienne version de PHP supportée et sur la plus récente.
+
+## Déploiement
 ### Caddy + PHP-FPM
-The app has no built-in authentication. Add `basic_auth` (or any other auth mechanism) at the web server level to protect access.
+L'application n'a pas d'authentification intégrée. Ajouter `basic_auth` (ou tout autre mécanisme d'authentification) au niveau du serveur web pour en protéger l'accès.
 
 ```
 domain.tld {
@@ -105,24 +108,24 @@ domain.tld {
 }
 ```
 
-Generate `hash_bcrypt` with:
+Générer `hash_bcrypt` avec :
 ```bash
 caddy hash-password --plaintext "password"
 ```
 
-`env REMOTE_USER` is what lets PHP see who authenticated. Set `'require_auth' => true` in `config.php` once it is in place: the app then answers `401` to any request that reached it without an authenticated user, so a vhost that loses its `basic_auth` block fails closed instead of serving the tool to the internet.
+`env REMOTE_USER` permet à PHP de savoir qui s'est authentifié. Une fois ce bloc en place, passer `'require_auth' => true` dans `config.php` : l'application répond alors `401` à toute requête arrivée sans utilisateur authentifié. Un vhost qui perd son bloc `basic_auth` échoue ainsi fermé au lieu d'exposer l'outil sur internet.
 
 ### Apache / nginx
-Any standard PHP setup works too — point the document root at the project folder so `index.html` is served and `.php` files are executed by PHP-FPM or mod_php. Pass `WAMX_CONFIG` through `SetEnv` (Apache) or `fastcgi_param` (nginx), or drop `config.php` next to `api.php` and skip it. The same `Cache-Control`, `Content-Security-Policy`, `X-Content-Type-Options` and `Referrer-Policy` headers are worth setting there as well.
+Toute configuration PHP standard convient : faire pointer la racine web sur le dossier du projet, pour que `index.html` soit servi et que les fichiers `.php` soient exécutés par PHP-FPM ou mod_php. Transmettre `WAMX_CONFIG` via `SetEnv` (Apache) ou `fastcgi_param` (nginx), ou déposer `config.php` à côté de `api.php` et s'en passer. Les en-têtes `Cache-Control`, `Content-Security-Policy`, `X-Content-Type-Options` et `Referrer-Policy` valent la peine d'être posés là aussi.
 
-## Security notes
-- The OVH proxy only forwards `/email/domain/<configured domain>/redirection[/<id>]`. Nothing else in the OVH API is reachable through it, whatever the caller sends. The two read-only `?action=` endpoints don't go through the proxy at all; they check their domain against the same configured list.
-- Writes are blocked from a cross-site context three ways over: `Sec-Fetch-Site` when the browser sends it, `Origin` against the requested host when it doesn't, and a required JSON content type on `POST` — which is the one a cross-site `<form>` can never satisfy without a preflight this app never approves.
-- Keep the API token restricted to `/email/domain/*`, and `config.php` out of the document root.
-- Authentication is the web server's job — see above, and turn on `require_auth` so a mistake there is loud.
+## Sécurité
+- Le navigateur n'envoie que des valeurs (un domaine, deux adresses, un identifiant), toutes validées par le serveur, jamais un chemin ni un corps de requête à transmettre tel quel. `api.php` construit lui-même chaque appel OVH, et le seul chemin qu'il sait construire est `/email/domain/<domaine configuré>/redirection[/<id>]`. Le reste de l'API OVH est hors d'atteinte, quoi que l'appelant envoie.
+- Les écritures (`add`, `delete`) sont protégées de trois façons contre un contexte cross-site : `Sec-Fetch-Site` quand le navigateur l'envoie, `Origin` comparé à l'hôte demandé sinon, et un type de contenu JSON obligatoire, qu'un `<form>` cross-site ne peut jamais produire sans une requête préalable (preflight) que l'application n'approuve jamais.
+- Restreindre le jeton API à `/email/domain/*`, et garder `config.php` hors de la racine web.
+- L'authentification est l'affaire du serveur web (voir plus haut) ; activer `require_auth` pour qu'une erreur de configuration se voie.
 
-## Legacy Node.js version
-This project used to run as a single `node server.js`. That version is preserved at the [`v1.1-node`](../../releases/tag/v1.1-node) tag if you need it.
+## Ancienne version Node.js
+Ce projet tournait autrefois avec un simple `node server.js`. Cette version est conservée au tag [`v1.1-node`](../../releases/tag/v1.1-node).
 
-## License
+## Licence
 [WTFPL](LICENSE)

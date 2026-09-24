@@ -2,16 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#f0f2f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0b0f14" media="(prefers-color-scheme: dark)">
   <title>Web Alias MX OVH</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%232563eb'%20stroke-width='1.2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x='1.5'%20y='3.5'%20width='13'%20height='9'%20rx='1.5'/%3E%3Cpath%20d='M1.5%204.5L8%209l6.5-4.5'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
 </head>
 <body>
-<main class="container">
+<main>
   <h1>Web Alias MX OVH</h1>
   <div class="card">
     <div class="field">
@@ -33,7 +34,7 @@
               <input type="text" id="from" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
               <span class="input-suffix" id="from-suffix"></span>
             </div>
-            <button type="button" class="btn-square" id="from-toggle" aria-pressed="false" aria-label="Edit the full address" title="Edit full address"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.5 1.5l3 3-9.5 9.5H2v-3z"/></svg></button>
+            <button type="button" class="btn-square" id="from-toggle" aria-pressed="false" title="Edit the full address"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M11.5 1.5l3 3-9.5 9.5H2v-3z"/></svg></button>
           </div>
         </div>
         <span class="arrow" aria-hidden="true">&rarr;</span>
@@ -41,7 +42,7 @@
           <label for="to">Destination</label>
           <div class="field-inline">
             <input type="email" id="to" required autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false">
-            <button type="submit" class="btn-square btn-add" id="add-btn" aria-label="Add redirection" title="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M8 3v10M3 8h10"/></svg></button>
+            <button type="submit" class="btn-square btn-add" id="add-btn" title="Add the redirection"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M8 3v10M3 8h10"/></svg></button>
           </div>
         </div>
       </div>
@@ -70,10 +71,9 @@
     <td role="cell" class="td-from"></td>
     <td role="cell" class="td-to"></td>
     <td role="cell" class="td-actions">
-      <button type="button" class="btn-square btn-del" title="Delete"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg></button>
+      <button type="button" class="btn-square btn-del"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4h12"/><path d="M5.3 4V2.7A1.3 1.3 0 016.7 1.3h2.6a1.3 1.3 0 011.4 1.4V4"/><path d="M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4h9.4z"/></svg></button>
     </td>
   </tr>
 </template>
-<script src="app.js"></script>
 </body>
 </html>

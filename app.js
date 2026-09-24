@@ -1,5 +1,3 @@
-'use strict';
-
 const $ = id => document.getElementById(id);
 const dom = {
   domain: $('domain'), from: $('from'), to: $('to'), form: $('add-form'), btn: $('add-btn'),
@@ -16,7 +14,7 @@ const MSG_TIMEOUT = 4000;
 // Catches the empty side and the "user@other.com@domain.tld" case; the rest is OVH's call.
 const EMAIL_RE = /^[^@\s]+@[^@\s]+$/;
 
-let domains = {}, selectedDomain = '', msgTimer, fromExpanded = false, listRequest = 0;
+let domains = {}, selectedDomain = '', msgTimer, listRequest = 0;
 
 // localStorage throws outright in some privacy modes, which would otherwise take the whole
 // page down on load. Remembering the last domain is a convenience, never a requirement.
@@ -28,7 +26,7 @@ const store = {
 async function request(url, opts = {}) {
   let r;
   try {
-    r = await fetch(url, { ...opts, signal: AbortSignal.timeout?.(REQUEST_TIMEOUT) });
+    r = await fetch(url, { ...opts, signal: AbortSignal.timeout(REQUEST_TIMEOUT) });
   } catch (err) {
     throw new Error(err.name === 'TimeoutError' ? 'The server did not answer in time' : 'Network error');
   }
@@ -37,9 +35,16 @@ async function request(url, opts = {}) {
   return data;
 }
 
-const api = (path, opts) => request(`api.php?ovh=${encodeURIComponent(selectedDomain + '/redirection' + path)}`, opts);
+const post = (action, data) => request(`api.php?action=${action}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ domain: selectedDomain, ...data }),
+});
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// The pressed state of the pencil button is the only record of which mode the field is in.
+const isExpanded = () => dom.fromToggle.ariaPressed === 'true';
 
 function showMsg(text, kind) {
   clearTimeout(msgTimer);
@@ -58,32 +63,20 @@ function setNote(text, kind) {
 }
 
 function setDomain(d) {
-  const prev = selectedDomain;
   selectedDomain = d;
   store.set(STORE_KEY, d);
-  dom.to.value = domains[d] || '';
+  dom.to.value = domains[d];
   dom.fromSuffix.textContent = '@' + d;
-  if (fromExpanded) {
-    const val = dom.from.value;
-    const at = val.indexOf('@');
-    if (at >= 0 && prev) dom.from.value = val.slice(0, at) + '@' + d;
-  }
+  const at = dom.from.value.indexOf('@');
+  if (isExpanded() && at >= 0) dom.from.value = dom.from.value.slice(0, at + 1) + d;
 }
 
 dom.fromToggle.addEventListener('click', () => {
-  const group = dom.from.closest('.input-group');
-  fromExpanded = !fromExpanded;
-  dom.fromToggle.setAttribute('aria-pressed', String(fromExpanded));
-  if (fromExpanded) {
-    const prefix = dom.from.value.trim();
-    dom.from.value = prefix ? prefix + '@' + selectedDomain : '@' + selectedDomain;
-  } else {
-    const val = dom.from.value.trim();
-    const at = val.indexOf('@');
-    dom.from.value = at > 0 ? val.slice(0, at) : (at === 0 ? '' : val);
-  }
-  group.classList.toggle('expanded', fromExpanded);
-  dom.fromToggle.classList.toggle('active', fromExpanded);
+  const expand = !isExpanded();
+  const val = dom.from.value.trim();
+  dom.fromToggle.ariaPressed = String(expand);
+  if (expand) dom.from.value = val.includes('@') ? val : `${val}@${selectedDomain}`;
+  else dom.from.value = val.split('@')[0];
   dom.from.focus();
 });
 
@@ -95,8 +88,8 @@ function renderRows(items) {
     row.querySelector('.td-from').textContent = item.from;
     row.querySelector('.td-to').textContent = item.to;
     const btn = row.querySelector('.btn-del');
-    btn.dataset.id = String(item.id);
-    btn.setAttribute('aria-label', `Delete the redirection from ${item.from}`);
+    btn.dataset.id = item.id;
+    btn.title = `Delete the redirection from ${item.from}`;
     frag.append(row);
   }
   dom.rows.replaceChildren(frag);
@@ -105,12 +98,12 @@ function renderRows(items) {
 async function fetchList() {
   // Switching domains twice in a row must not let the slower response win the race.
   const token = ++listRequest;
-  dom.list.setAttribute('aria-busy', 'true');
+  dom.list.ariaBusy = 'true';
   dom.table.hidden = true;
   dom.count.textContent = '';
   setNote('Loading…', '');
   try {
-    const { items = [], unread = 0 } = await request(`api.php?action=redirections&domain=${encodeURIComponent(selectedDomain)}`) ?? {};
+    const { items, unread } = await request(`api.php?action=list&domain=${encodeURIComponent(selectedDomain)}`);
     if (token !== listRequest) return;
     renderRows(items);
     dom.table.hidden = items.length === 0;
@@ -122,7 +115,7 @@ async function fetchList() {
     if (token !== listRequest) return;
     setNote(err.message, 'err');
   } finally {
-    if (token === listRequest) dom.list.setAttribute('aria-busy', 'false');
+    if (token === listRequest) dom.list.ariaBusy = 'false';
   }
 }
 
@@ -130,21 +123,22 @@ dom.domain.addEventListener('change', () => { setDomain(dom.domain.value); fetch
 
 dom.form.addEventListener('submit', async e => {
   e.preventDefault();
+  const expanded = isExpanded();
   const typed = dom.from.value.trim(), to = dom.to.value.trim();
   // Collapsed, the field holds a username and the domain is appended: letting a full address
   // through here used to build "user@other.com@domain.tld" and hand it to OVH to reject.
-  if (!fromExpanded && typed.includes('@')) {
+  if (!expanded && typed.includes('@')) {
     showMsg('Use the pencil button to enter a full address', 'err');
     return;
   }
-  const from = fromExpanded ? typed : `${typed}@${selectedDomain}`;
+  const from = expanded ? typed : `${typed}@${selectedDomain}`;
   if (!EMAIL_RE.test(from)) { showMsg('Source is not a valid address', 'err'); return; }
 
   dom.btn.disabled = true;
   try {
-    await api('', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, localCopy: false }) });
+    await post('add', { from, to });
     showMsg('Redirection added', 'ok');
-    dom.from.value = fromExpanded ? '@' + selectedDomain : '';
+    dom.from.value = expanded ? '@' + selectedDomain : '';
     await fetchList();
   } catch (err) { showMsg(err.message, 'err'); }
   finally { dom.btn.disabled = false; }
@@ -155,7 +149,7 @@ dom.rows.addEventListener('click', async e => {
   if (!btn || !confirm('Delete this redirection?')) return;
   btn.disabled = true;
   try {
-    await api(`/${btn.dataset.id}`, { method: 'DELETE' });
+    await post('delete', { id: Number(btn.dataset.id) });
     showMsg('Redirection deleted', 'ok');
     await fetchList();
   } catch (err) {
@@ -164,24 +158,15 @@ dom.rows.addEventListener('click', async e => {
   }
 });
 
-(async () => {
-  try {
-    const { domains: loaded } = await request('api.php?action=config') ?? {};
-    domains = loaded || {};
-    const keys = Object.keys(domains);
-    if (!keys.length) {
-      setNote('No domain configured — add one to the "domains" list in config.php', 'err');
-      for (const el of [dom.domain, dom.from, dom.to, dom.btn, dom.fromToggle]) el.disabled = true;
-      dom.list.setAttribute('aria-busy', 'false');
-      return;
-    }
-    const saved = store.get(STORE_KEY);
-    selectedDomain = keys.includes(saved) ? saved : keys[0];
-    dom.domain.replaceChildren(...keys.map(k => new Option(k, k, false, k === selectedDomain)));
-    setDomain(selectedDomain);
-    await fetchList();
-  } catch (err) {
-    setNote(err.message || 'Failed to load configuration', 'err');
-    dom.list.setAttribute('aria-busy', 'false');
-  }
-})();
+// api.php refuses to start without at least one domain, so an answer here always has one.
+try {
+  ({ domains } = await request('api.php?action=config'));
+  const keys = Object.keys(domains);
+  const saved = store.get(STORE_KEY);
+  dom.domain.replaceChildren(...keys.map(k => new Option(k, k, false, k === saved)));
+  setDomain(keys.includes(saved) ? saved : keys[0]);
+  await fetchList();
+} catch (err) {
+  setNote(err.message, 'err');
+  dom.list.ariaBusy = 'false';
+}
